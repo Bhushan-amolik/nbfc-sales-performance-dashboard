@@ -1,0 +1,141 @@
+SELECT DISTINCT
+		 "NBFC :- Dump Data union"."loan_account_number" as "loan_application_number",
+		 "NBFC :- Dump Data union"."customer_name" as "customer_name",
+		 /* "NBFC :- Dump Data union"."mobile_no" as "mobile_no",*/ "NBFC :- Dump Data union"."Table" as 'Entity',
+		 "Loan Portfolio CF + CF_Gsheet + PB_010"."disbursal_date" as "disbursal_date",
+		 if("Loan Portfolio CF + CF_Gsheet + PB_010"."disbursal_date"  between last_nmonth((date(concat_ws('-', year(today()), month(today()), '1'))), 8)  and  next_nmonth(last_nmonth(date(concat_ws('-', year(today()), month(today()), '1')), 8), 7), 'YES', 'NO') as 'MOB YES/NO',
+		 '===> DPD' as 'DPD Details',
+		 "NBFC :- Dump Data union"."dpd" as "Previous_dpd",
+		 "Loan Portfolio CF + CF_Gsheet + PB_010"."dpd" as "Current dpd",
+		 "Loan Portfolio CF + CF_Gsheet + PB_010"."dpd" -"NBFC :- Dump Data union"."dpd" as 'DPD Difference',
+		 IF(IF_NULL("Loan Portfolio CF + CF_Gsheet + PB_010"."loan_status", '-')  <> 'Active', 'Normalized', if("NBFC :- Dump Data union"."dpd"  = 1
+		 AND	"Loan Portfolio CF + CF_Gsheet + PB_010"."dpd"  = 0, 'Regular', if(if_null("LMS049ReceiptMis New"."receipt_purpose", "Paisa_Buddy_LMS049ReceiptMis"."receipt_purpose")  = 'Closure', 'Normalized', if("Loan Portfolio CF + CF_Gsheet + PB_010"."dpd"  = 0, 'Normalized', if("NBFC :- Dump Data union"."dpd"  > 1
+		 AND	"Loan Portfolio CF + CF_Gsheet + PB_010"."dpd"  <= 30, 'Stab', if("NBFC :- Dump Data union"."dpd"  > 30
+		 AND	"Loan Portfolio CF + CF_Gsheet + PB_010"."dpd"  <= 60, 'Roll Back', if("Loan Portfolio CF + CF_Gsheet + PB_010"."dpd"  > "NBFC :- Dump Data union"."dpd", 'Roll Forword', null))))))) as 'DPD Satus',
+		 TRIM(UPPER_CASE("NBFC :- Dump Data union"."DPD Wise")) as "Previous_dpd_wise",
+		 TRIM(UPPER_CASE("Loan Portfolio CF + CF_Gsheet + PB_010"."DPD Wise")) as "Current_DPD Wise",
+		 if(trim(upper_case("NBFC :- Dump Data union"."DPD Wise"))  = trim(upper_Case("Loan Portfolio CF + CF_Gsheet + PB_010"."DPD Wise")), 'True', 'False') as 'Bucket-True/False',
+		 UPPER_CASE((if(trim(upper_Case("NBFC :- Dump Data union"."DPD Wise"))  = 'CURRENT', '1-30 days', if("NBFC :- Dump Data union"."DPD Wise"  = '1-30 days', '31-60 days', if("NBFC :- Dump Data union"."DPD Wise"  = '31-60 days', '61-90 days', if("NBFC :- Dump Data union"."DPD Wise"  = '61-90 days', '91-120 days', if("NBFC :- Dump Data union"."DPD Wise"  = '91-120 days', '121-150 days', if("NBFC :- Dump Data union"."DPD Wise"  = '121-150 days', '151-180 days', if("NBFC :- Dump Data union"."DPD Wise"  = '151-180 days', 'More than 180 days', "NBFC :- Dump Data union"."DPD Wise"))))))))) as 'Extended DPD',
+		 if("NBFC :- Dump Data union"."dpd"  = 0
+		 AND	"Loan Portfolio CF + CF_Gsheet + PB_010"."dpd"  between 1  and  30, 'x-Bucket', "Loan Portfolio CF + CF_Gsheet + PB_010"."DPD Wise") as 'Current_dpd_wise_Revised',
+		 '===> POS' as 'POS Deatils',
+		 "NBFC :- Dump Data union"."principal_outstanding" as 'Previous_POS',
+		 "Loan Portfolio CF + CF_Gsheet + PB_010"."principal_outstanding" as "Current_POS",
+		 '===>No of Overdue Installment' as 'No of Inatallment Amount_details',
+		 "NBFC :- Dump Data union"."number_of_overdue_installment" as "Previous_number_of_overdue_installment",
+		 "Loan Portfolio CF + CF_Gsheet + PB_010"."number_of_overdue_installment" as "Current number_of_overdue_installment",
+		 "NBFC :- Dump Data union"."number_of_overdue_installment" -"Loan Portfolio CF + CF_Gsheet + PB_010"."number_of_overdue_installment" as 'Overdue_Installment Diff',
+		 
+			CASE
+				 WHEN ("NBFC :- Dump Data union"."number_of_overdue_installment" + 1)  = 1
+				 AND	"Loan Portfolio CF + CF_Gsheet + PB_010"."number_of_overdue_installment"  = 0 THEN 'Regular'
+				 WHEN ("NBFC :- Dump Data union"."number_of_overdue_installment" + 1)  >= 2
+				 AND	"Loan Portfolio CF + CF_Gsheet + PB_010"."number_of_overdue_installment"  = ("NBFC :- Dump Data union"."number_of_overdue_installment" + 1) THEN 'Stab'
+				 WHEN ("NBFC :- Dump Data union"."number_of_overdue_installment" + 1)  >= 3
+				 AND	"Loan Portfolio CF + CF_Gsheet + PB_010"."number_of_overdue_installment"  = 0 THEN 'Norm'
+				 WHEN ("NBFC :- Dump Data union"."number_of_overdue_installment" + 1)  >= 3
+				 AND	"Loan Portfolio CF + CF_Gsheet + PB_010"."number_of_overdue_installment"  < ("NBFC :- Dump Data union"."number_of_overdue_installment" + 1) THEN 'RB'
+				 WHEN "Loan Portfolio CF + CF_Gsheet + PB_010"."number_of_overdue_installment"  > ("NBFC :- Dump Data union"."number_of_overdue_installment" + 1) THEN 'RF'
+				 ELSE 'NULL'
+			 END AS 'OVERDUE _STATUS',
+		 '===> Allocation' as 'Allocation Details',
+		 to_string("NBFC :- Dump Data union"."allocated_to_employee_code") as "Previous_allocated_to_employee_code",
+		 Base."allocated_to_employee_code" as "Current_allocated_to_employee_code",
+		 "NBFC :- Dump Data union"."allocated_to__name" as "Previous_allocated_to__name",
+		 Base."allocated_to__name" as "Current_allocated_to__name",
+		 '===> Loan Status' as 'Loan Status Details',
+		 "NBFC :- Dump Data union"."loan_status" as 'Previous_loan_status',
+		 "Loan Portfolio CF + CF_Gsheet + PB_010"."loan_status" as 'Current Loan Status',
+		 '===>Marking Table' as 'Marking Type',
+		 "LMS043_PB_CF"."marking_status" as "marking_status",
+		 "LMS043_PB_CF"."marking_subtype" as "marking_subtype",
+		 "LMS043_PB_CF"."marking_type" as "marking_type",
+		 '===>Amount_details' as 'Amount_details',
+		 "LMS017_PB_CF Union"."emi_due_date" as "emi_due_date",
+		 "Loan Portfolio CF + CF_Gsheet + PB_010"."emi_day" as "emi_day",
+		 if("LMS017_PB_CF Union"."emi_due_date"  >= concat_ws('-', year(today()), month(today()), '11'), "LMS017_PB_CF Union"."emi_due_date", date(concat_ws('-', year(next_nmonth(today(), 1)), month(next_nmonth(today(), 1)), if_null("Loan Portfolio CF + CF_Gsheet + PB_010"."emi_day", day("LMS017_PB_CF Union"."emi_due_date"))))) as 'next EMI date2',
+		 date(concat_ws('-', year(next_nmonth(today(), 1)), month(next_nmonth(today(), 1)), if_null("Loan Portfolio CF + CF_Gsheet + PB_010"."emi_day", day("LMS017_PB_CF Union"."emi_due_date")))) as 'next EMI date',
+		 if(today()  <= date(concat_ws('-', year(next_nmonth(today(), 1)), month(next_nmonth(today(), 1)), if_null("Loan Portfolio CF + CF_Gsheet + PB_010"."emi_day", day("LMS017_PB_CF Union"."emi_due_date")))), 'Yes', 'NO') as 'Date Yes/ No',
+		 if(today()  <= if("LMS017_PB_CF Union"."emi_due_date"  >= concat_ws('-', year(today()), month(today()), '11'), "LMS017_PB_CF Union"."emi_due_date", date(concat_ws('-', year(next_nmonth(today(), 1)), month(next_nmonth(today(), 1)), if_null("Loan Portfolio CF + CF_Gsheet + PB_010"."emi_day", day("LMS017_PB_CF Union"."emi_due_date"))))), 'Yes', 'No') as 'Date Yes/ NO 2',
+		 "Loan Portfolio CF + CF_Gsheet + PB_010"."emi_overdue" as "Current_emi_overdue",
+		 "Loan Portfolio CF + CF_Gsheet + PB_010"."total_overdue" as "Current_total_overdue",
+		 "LMS017_PB_CF Union"."billed_installment_amount" as "billed_installment_amount",
+		 "Loan Portfolio CF + CF_Gsheet + PB_010"."installment_amount" as "installment_amount",
+		 if("LMS017_PB_CF Union"."billed_installment_amount"  > "Loan Portfolio CF + CF_Gsheet + PB_010"."installment_amount", "LMS017_PB_CF Union"."billed_installment_amount", "Loan Portfolio CF + CF_Gsheet + PB_010"."installment_amount") as 'Instalment Collection Amount',
+		 "Loan Portfolio CF + CF_Gsheet + PB_010"."advance_installment_amount" as "Current_advance_installment_amount",
+		 "LMS_Receipt_MIS_CF_PB_049"."date_of_receipt" as "date_of_receipt",
+		 "LMS_Receipt_MIS_CF_PB_049"."receipt_amount" as "receipt_amount",
+		 if_null("LMS049ReceiptMis New"."receipt_purpose", "Paisa_Buddy_LMS049ReceiptMis"."receipt_purpose") as "receipt_purpose",
+		 IF(IF_NULL("Loan Portfolio CF + CF_Gsheet + PB_010"."loan_status", '-')  <> 'Active', 'Normalized', if("NBFC :- Dump Data union"."dpd"  = 1
+		 AND	"Loan Portfolio CF + CF_Gsheet + PB_010"."dpd"  = 0, 'Regular', if(if_null("LMS049ReceiptMis New"."receipt_purpose", "Paisa_Buddy_LMS049ReceiptMis"."receipt_purpose")  = 'Closure', 'Normalized', IF("LMS017_PB_CF Union"."emi_due_date"  IS NULL
+		 AND	(IF("LMS017_PB_CF Union"."emi_due_date"  IS NOT NULL, IS_NULL("Loan Portfolio CF + CF_Gsheet + PB_010"."advance_installment_amount", 0), 0) + IS_NULL("LMS_Receipt_MIS_CF_PB_049"."receipt_amount", 0)) / IF_NULL(IF_NULL("LMS017_PB_CF Union"."billed_installment_amount", "Loan Portfolio CF + CF_Gsheet + PB_010"."installment_amount"), 0)  >= 1
+		 AND	(IF("LMS017_PB_CF Union"."emi_due_date"  IS NOT NULL, IS_NULL("LMS017_PB_CF Union"."billed_installment_amount", 0), 0) + IS_NULL("LMS_Receipt_MIS_CF_PB_049"."receipt_amount", 0)) / IF_NULL(IF_NULL("LMS017_PB_CF Union"."billed_installment_amount", "Loan Portfolio CF + CF_Gsheet + PB_010"."installment_amount"), 0)  < 2, 'Stable', IF("Loan Portfolio CF + CF_Gsheet + PB_010"."dpd"  = 0
+		 AND	"LMS017_PB_CF Union"."emi_due_date"  IS NOT NULL, 'Normalized', IF((IF("LMS017_PB_CF Union"."emi_due_date"  IS NOT NULL, IS_NULL("Loan Portfolio CF + CF_Gsheet + PB_010"."advance_installment_amount", 0), 0) + IS_NULL("LMS_Receipt_MIS_CF_PB_049"."receipt_amount", 0)) / IF_NULL(IF_NULL("LMS017_PB_CF Union"."billed_installment_amount", "Loan Portfolio CF + CF_Gsheet + PB_010"."installment_amount"), 0)  < 1, 'Roll Forward', IF((IF("LMS017_PB_CF Union"."emi_due_date"  IS NOT NULL, IS_NULL("Loan Portfolio CF + CF_Gsheet + PB_010"."advance_installment_amount", 0), 0) + IS_NULL("LMS_Receipt_MIS_CF_PB_049"."receipt_amount", 0)) / IF_NULL(IF_NULL("LMS017_PB_CF Union"."billed_installment_amount", "Loan Portfolio CF + CF_Gsheet + PB_010"."installment_amount"), 0)  >= 1
+		 AND	(IF("LMS017_PB_CF Union"."emi_due_date"  IS NOT NULL, IS_NULL("Loan Portfolio CF + CF_Gsheet + PB_010"."advance_installment_amount", 0), 0) + IS_NULL("LMS_Receipt_MIS_CF_PB_049"."receipt_amount", 0)) / IF_NULL(IF_NULL("LMS017_PB_CF Union"."billed_installment_amount", "Loan Portfolio CF + CF_Gsheet + PB_010"."installment_amount"), 0)  < 2, 'Stable', IF((IF("LMS017_PB_CF Union"."emi_due_date"  IS NOT NULL, IS_NULL("Loan Portfolio CF + CF_Gsheet + PB_010"."advance_installment_amount", 0), 0) + IS_NULL("LMS_Receipt_MIS_CF_PB_049"."receipt_amount", 0)) / IF_NULL(IF_NULL("LMS017_PB_CF Union"."billed_installment_amount", "Loan Portfolio CF + CF_Gsheet + PB_010"."installment_amount"), 0)  >= 2, 'Roll Back', NULL)))))))) as 'Status',
+		 IF(IF_NULL("Loan Portfolio CF + CF_Gsheet + PB_010"."loan_status", '-')  <> 'Active', 'Normalized', if("NBFC :- Dump Data union"."dpd"  = 1
+		 AND	"Loan Portfolio CF + CF_Gsheet + PB_010"."dpd"  = 0, 'Regular', if(if_null("LMS049ReceiptMis New"."receipt_purpose", "Paisa_Buddy_LMS049ReceiptMis"."receipt_purpose")  = 'Closure', 'Normalized', IF("LMS017_PB_CF Union"."emi_due_date"  IS NULL
+		 AND	(IF("LMS017_PB_CF Union"."emi_due_date"  IS NOT NULL, IS_NULL("Loan Portfolio CF + CF_Gsheet + PB_010"."advance_installment_amount", 0), 0) + IS_NULL("LMS_Receipt_MIS_CF_PB_049"."receipt_amount", 0)) / IF_NULL(IF_NULL("LMS017_PB_CF Union"."billed_installment_amount", "Loan Portfolio CF + CF_Gsheet + PB_010"."installment_amount"), 0)  >= 1
+		 AND	(IF("LMS017_PB_CF Union"."emi_due_date"  IS NOT NULL, IS_NULL("LMS017_PB_CF Union"."billed_installment_amount", 0), 0) + IS_NULL("LMS_Receipt_MIS_CF_PB_049"."receipt_amount", 0)) / IF_NULL(IF_NULL("LMS017_PB_CF Union"."billed_installment_amount", "Loan Portfolio CF + CF_Gsheet + PB_010"."installment_amount"), 0)  < 2, 'Stable', IF("Loan Portfolio CF + CF_Gsheet + PB_010"."dpd"  = 0
+		 AND	"LMS017_PB_CF Union"."emi_due_date"  IS NOT NULL, 'Normalized', IF((IF("LMS017_PB_CF Union"."emi_due_date"  IS NOT NULL, IS_NULL("Loan Portfolio CF + CF_Gsheet + PB_010"."advance_installment_amount", 0), 0) + IS_NULL("LMS_Receipt_MIS_CF_PB_049"."receipt_amount", 0)) / IF_NULL(IF_NULL("LMS017_PB_CF Union"."billed_installment_amount", "Loan Portfolio CF + CF_Gsheet + PB_010"."installment_amount"), 0)  < 1, 'Roll Forward', IF((IF("LMS017_PB_CF Union"."emi_due_date"  IS NOT NULL, IS_NULL("Loan Portfolio CF + CF_Gsheet + PB_010"."advance_installment_amount", 0), 0) + IS_NULL("LMS_Receipt_MIS_CF_PB_049"."receipt_amount", 0)) / IF_NULL(IF_NULL("LMS017_PB_CF Union"."billed_installment_amount", "Loan Portfolio CF + CF_Gsheet + PB_010"."installment_amount"), 0)  >= 1
+		 AND	(IF("LMS017_PB_CF Union"."emi_due_date"  IS NOT NULL, IS_NULL("Loan Portfolio CF + CF_Gsheet + PB_010"."advance_installment_amount", 0), 0) + IS_NULL("LMS_Receipt_MIS_CF_PB_049"."receipt_amount", 0)) / IF_NULL(IF_NULL("LMS017_PB_CF Union"."billed_installment_amount", "Loan Portfolio CF + CF_Gsheet + PB_010"."installment_amount"), 0)  < 2, 'Stable', IF((IF("LMS017_PB_CF Union"."emi_due_date"  IS NOT NULL, IS_NULL("Loan Portfolio CF + CF_Gsheet + PB_010"."advance_installment_amount", 0), 0) + IS_NULL("LMS_Receipt_MIS_CF_PB_049"."receipt_amount", 0)) / IF_NULL(IF_NULL("LMS017_PB_CF Union"."billed_installment_amount", "Loan Portfolio CF + CF_Gsheet + PB_010"."installment_amount"), 0)  >= 2, 'Roll Back', if("Loan Portfolio CF + CF_Gsheet + PB_010"."dpd"  > 0
+		 AND	"LMS017_PB_CF Union"."billed_installment_amount"  = 0
+		 AND	"Loan Portfolio CF + CF_Gsheet + PB_010"."total_overdue"  > 0, 'Roll Forward', NULL))))))))) as 'Status1',
+		 IF(IF_NULL("Loan Portfolio CF + CF_Gsheet + PB_010"."loan_status", '-')  <> 'Active', 'Normalized', if("NBFC :- Dump Data union"."dpd"  = 1
+		 AND	"Loan Portfolio CF + CF_Gsheet + PB_010"."dpd"  = 0, 'Regular', if(if_null("LMS049ReceiptMis New"."receipt_purpose", "Paisa_Buddy_LMS049ReceiptMis"."receipt_purpose")  = 'Closure', 'Normalized', IF("LMS017_PB_CF Union"."emi_due_date"  IS NULL
+		 AND	(IF("LMS017_PB_CF Union"."emi_due_date"  IS NOT NULL, IS_NULL("Loan Portfolio CF + CF_Gsheet + PB_010"."advance_installment_amount", 0), 0) + IS_NULL("LMS_Receipt_MIS_CF_PB_049"."receipt_amount", 0)) / IF_NULL(IF_NULL("LMS017_PB_CF Union"."billed_installment_amount", "Loan Portfolio CF + CF_Gsheet + PB_010"."installment_amount"), 0)  >= 1
+		 AND	(IF("LMS017_PB_CF Union"."emi_due_date"  IS NOT NULL, IS_NULL("LMS017_PB_CF Union"."billed_installment_amount", 0), 0) + IS_NULL("LMS_Receipt_MIS_CF_PB_049"."receipt_amount", 0)) / IF_NULL(IF_NULL("LMS017_PB_CF Union"."billed_installment_amount", "Loan Portfolio CF + CF_Gsheet + PB_010"."installment_amount"), 0)  < 2, 'Stable', IF("Loan Portfolio CF + CF_Gsheet + PB_010"."dpd"  = 0
+		 AND	"LMS017_PB_CF Union"."emi_due_date"  IS NOT NULL, 'Normalized', IF((IF("LMS017_PB_CF Union"."emi_due_date"  IS NOT NULL, IS_NULL("Loan Portfolio CF + CF_Gsheet + PB_010"."advance_installment_amount", 0), 0) + IS_NULL("LMS_Receipt_MIS_CF_PB_049"."receipt_amount", 0)) / IF_NULL(IF_NULL("LMS017_PB_CF Union"."billed_installment_amount", "Loan Portfolio CF + CF_Gsheet + PB_010"."installment_amount"), 0)  < 1
+		 AND	"LMS_Receipt_MIS_CF_PB_049"."date_of_receipt"  is not null
+		 AND	"NBFC :- Dump Data union"."number_of_overdue_installment"  <> "Loan Portfolio CF + CF_Gsheet + PB_010"."number_of_overdue_installment", 'Roll Forward', IF((IF("LMS017_PB_CF Union"."emi_due_date"  IS NOT NULL, IS_NULL("Loan Portfolio CF + CF_Gsheet + PB_010"."advance_installment_amount", 0), 0) + IS_NULL("LMS_Receipt_MIS_CF_PB_049"."receipt_amount", 0)) / IF_NULL(IF_NULL("LMS017_PB_CF Union"."billed_installment_amount", "Loan Portfolio CF + CF_Gsheet + PB_010"."installment_amount"), 0)  >= 1
+		 AND	(IF("LMS017_PB_CF Union"."emi_due_date"  IS NOT NULL, IS_NULL("Loan Portfolio CF + CF_Gsheet + PB_010"."advance_installment_amount", 0), 0) + IS_NULL("LMS_Receipt_MIS_CF_PB_049"."receipt_amount", 0)) / IF_NULL(IF_NULL("LMS017_PB_CF Union"."billed_installment_amount", "Loan Portfolio CF + CF_Gsheet + PB_010"."installment_amount"), 0)  < 2, 'Stable', IF((IF("LMS017_PB_CF Union"."emi_due_date"  IS NOT NULL, IS_NULL("Loan Portfolio CF + CF_Gsheet + PB_010"."advance_installment_amount", 0), 0) + IS_NULL("LMS_Receipt_MIS_CF_PB_049"."receipt_amount", 0)) / IF_NULL(IF_NULL("LMS017_PB_CF Union"."billed_installment_amount", "Loan Portfolio CF + CF_Gsheet + PB_010"."installment_amount"), 0)  >= 2, 'Roll Back', if("Loan Portfolio CF + CF_Gsheet + PB_010"."dpd"  > 0
+		 AND	"LMS017_PB_CF Union"."billed_installment_amount"  = 0
+		 AND	"Loan Portfolio CF + CF_Gsheet + PB_010"."total_overdue"  > 0
+		 AND	"LMS_Receipt_MIS_CF_PB_049"."date_of_receipt"  is not null
+		 AND	"NBFC :- Dump Data union"."number_of_overdue_installment"  <> "Loan Portfolio CF + CF_Gsheet + PB_010"."number_of_overdue_installment", 'Roll Forward', if("LMS_Receipt_MIS_CF_PB_049"."date_of_receipt"  is null
+		 AND	"NBFC :- Dump Data union"."number_of_overdue_installment"  = "Loan Portfolio CF + CF_Gsheet + PB_010"."number_of_overdue_installment", 'Stable', if("LMS_Receipt_MIS_CF_PB_049"."date_of_receipt"  is null
+		 AND	"NBFC :- Dump Data union"."number_of_overdue_installment"  < "Loan Portfolio CF + CF_Gsheet + PB_010"."number_of_overdue_installment", 'Roll Forward', if("LMS_Receipt_MIS_CF_PB_049"."date_of_receipt"  is not null
+		 AND	"LMS_Receipt_MIS_CF_PB_049"."receipt_amount"  > "LMS017_PB_CF Union"."billed_installment_amount", 'Roll Forward', if("LMS_Receipt_MIS_CF_PB_049"."date_of_receipt"  is null
+		 AND	"Loan Portfolio CF + CF_Gsheet + PB_010"."number_of_overdue_installment"  > "NBFC :- Dump Data union"."number_of_overdue_installment", 'Roll Back', NULL))))))))))))) as 'Status2',
+		 "Loan Portfolio CF + CF_Gsheet + PB_010"."principal_outstanding" as "principal_outstanding",
+		 'Current_Allocation_Hierarchy===>' as 'Hierarchy',
+		 "Synoric NBFC Hierarchy 100"."designationCode" as "designationCode",
+		 "Synoric NBFC Hierarchy 100"."RM1 Code" as "Reporting Manager 1 Code",
+		 "Synoric NBFC Hierarchy 100"."RM1 Name" as "Reporting Manager 1 Name",
+		 "Synoric NBFC Hierarchy 100"."RM2 Code" as "Reporting Manager 2 Code",
+		 "Synoric NBFC Hierarchy 100"."RM2 Name" as "Reporting Manager2 Name",
+		 "Synoric NBFC Hierarchy 100"."RM3 Code" as "Reporting Manager 3 Code",
+		 "Synoric NBFC Hierarchy 100"."RM3 Name" as "Reporting Manager3 Name",
+		 "Synoric NBFC Hierarchy 100"."RM4 Code" as "Reporting Manager 4 Code",
+		 "Synoric NBFC Hierarchy 100"."RM4 Name" as "Reporting Manager4 Name",
+		 "NBFC :- Dump Data union"."Date of Report Date" as "date of Report",
+		 "Loan Portfolio CF + CF_Gsheet + PB_010"."Latest Updated Product" as "Latest Updated Product",
+		 "Loan Portfolio CF + CF_Gsheet + PB_010"."DPD Wise" as "DPD Wise",
+		 IF(IF_NULL("Loan Portfolio CF + CF_Gsheet + PB_010"."loan_status", '-')  <> 'Active', 'Normalized', IF("LMS017_PB_CF Union"."emi_due_date"  IS NULL
+		 AND	(IF("LMS017_PB_CF Union"."emi_due_date"  IS NOT NULL, IS_NULL("Loan Portfolio CF + CF_Gsheet + PB_010"."advance_installment_amount", 0), 0) + IS_NULL("LMS_Receipt_MIS_CF_PB_049"."receipt_amount", 0)) / IF("LMS017_PB_CF Union"."billed_installment_amount"  > "Loan Portfolio CF + CF_Gsheet + PB_010"."installment_amount", "LMS017_PB_CF Union"."billed_installment_amount", "Loan Portfolio CF + CF_Gsheet + PB_010"."installment_amount")  >= 1
+		 AND	(IF("LMS017_PB_CF Union"."emi_due_date"  IS NOT NULL, IS_NULL("Loan Portfolio CF + CF_Gsheet + PB_010"."advance_installment_amount", 0), 0) + IS_NULL("LMS_Receipt_MIS_CF_PB_049"."receipt_amount", 0)) / IF("LMS017_PB_CF Union"."billed_installment_amount"  > "Loan Portfolio CF + CF_Gsheet + PB_010"."installment_amount", "LMS017_PB_CF Union"."billed_installment_amount", "Loan Portfolio CF + CF_Gsheet + PB_010"."installment_amount")  < 2, 'Stable', IF("Loan Portfolio CF + CF_Gsheet + PB_010"."dpd"  = 0
+		 AND	"LMS017_PB_CF Union"."emi_due_date"  IS NOT NULL, 'Normalized', IF((IF("LMS017_PB_CF Union"."emi_due_date"  IS NOT NULL, IS_NULL("Loan Portfolio CF + CF_Gsheet + PB_010"."advance_installment_amount", 0), 0) + IS_NULL("LMS_Receipt_MIS_CF_PB_049"."receipt_amount", 0)) / IF("LMS017_PB_CF Union"."billed_installment_amount"  > "Loan Portfolio CF + CF_Gsheet + PB_010"."installment_amount", "LMS017_PB_CF Union"."billed_installment_amount", "Loan Portfolio CF + CF_Gsheet + PB_010"."installment_amount")  < 1
+		 AND	"Loan Portfolio CF + CF_Gsheet + PB_010"."number_of_overdue_installment"  > "NBFC :- Dump Data union"."number_of_overdue_installment", 'Roll Forward', IF((IF("LMS017_PB_CF Union"."emi_due_date"  IS NOT NULL, IS_NULL("Loan Portfolio CF + CF_Gsheet + PB_010"."advance_installment_amount", 0), 0) + IS_NULL("LMS_Receipt_MIS_CF_PB_049"."receipt_amount", 0)) / IF("LMS017_PB_CF Union"."billed_installment_amount"  > "Loan Portfolio CF + CF_Gsheet + PB_010"."installment_amount", "LMS017_PB_CF Union"."billed_installment_amount", "Loan Portfolio CF + CF_Gsheet + PB_010"."installment_amount")  < 1
+		 AND	"Loan Portfolio CF + CF_Gsheet + PB_010"."number_of_overdue_installment"  = "NBFC :- Dump Data union"."number_of_overdue_installment", 'Stable', IF((IF("LMS017_PB_CF Union"."emi_due_date"  IS NOT NULL, IS_NULL("Loan Portfolio CF + CF_Gsheet + PB_010"."advance_installment_amount", 0), 0) + IS_NULL("LMS_Receipt_MIS_CF_PB_049"."receipt_amount", 0)) / IF("LMS017_PB_CF Union"."billed_installment_amount"  > "Loan Portfolio CF + CF_Gsheet + PB_010"."installment_amount", "LMS017_PB_CF Union"."billed_installment_amount", "Loan Portfolio CF + CF_Gsheet + PB_010"."installment_amount")  >= 1
+		 AND	(IF("LMS017_PB_CF Union"."emi_due_date"  IS NOT NULL, IS_NULL("Loan Portfolio CF + CF_Gsheet + PB_010"."advance_installment_amount", 0), 0) + IS_NULL("LMS_Receipt_MIS_CF_PB_049"."receipt_amount", 0)) / IF("LMS017_PB_CF Union"."billed_installment_amount"  > "Loan Portfolio CF + CF_Gsheet + PB_010"."installment_amount", "LMS017_PB_CF Union"."billed_installment_amount", "Loan Portfolio CF + CF_Gsheet + PB_010"."installment_amount")  < 2, 'Stable', IF((IF("LMS017_PB_CF Union"."emi_due_date"  IS NOT NULL, IS_NULL("Loan Portfolio CF + CF_Gsheet + PB_010"."advance_installment_amount", 0), 0) + IS_NULL("LMS_Receipt_MIS_CF_PB_049"."receipt_amount", 0)) / IF("LMS017_PB_CF Union"."billed_installment_amount"  > "Loan Portfolio CF + CF_Gsheet + PB_010"."installment_amount", "LMS017_PB_CF Union"."billed_installment_amount", "Loan Portfolio CF + CF_Gsheet + PB_010"."installment_amount")  >= 2, 'Roll Back', if("NBFC :- Dump Data union"."number_of_overdue_installment" - "Loan Portfolio CF + CF_Gsheet + PB_010"."number_of_overdue_installment"  = 1, 'Stable', if("NBFC :- Dump Data union"."number_of_overdue_installment" - "Loan Portfolio CF + CF_Gsheet + PB_010"."number_of_overdue_installment"  > 1, 'Roll Back', NULL))))))))) AS "Final Status3"
+FROM  "LMS010DUMPSNAPSHOT" AS  "NBFC :- Dump Data union"
+LEFT JOIN "Loan Portfolio CF + CF_Gsheet + PB_010" ON "NBFC :- Dump Data union"."loan_account_number"  = "Loan Portfolio CF + CF_Gsheet + PB_010"."loan_account_number" 
+LEFT JOIN "COL 007 Union" AS  Base ON Base."loan_application_number"  = "NBFC :- Dump Data union"."loan_account_number" 
+LEFT JOIN "LMS017_PB_CF Union" ON "LMS017_PB_CF Union"."loan_account_number"  = "NBFC :- Dump Data union"."loan_account_number"
+	 AND	"LMS017_PB_CF Union"."RN"  = '1' 
+LEFT JOIN "LMS_Receipt_MIS_CF_PB_049" ON "LMS_Receipt_MIS_CF_PB_049"."Loan Account Number"  = "NBFC :- Dump Data union"."loan_account_number" 
+LEFT JOIN "Synoric NBFC Hierarchy 100" ON "Synoric NBFC Hierarchy 100"."EMP Code"  = Base."allocated_to_employee_code" 
+LEFT JOIN "LMS043_PB_CF" ON "LMS043_PB_CF"."loan_account_number"  = "NBFC :- Dump Data union"."loan_account_number"
+	 AND	"LMS043_PB_CF"."Latest marking Date RN"  = 1 
+LEFT JOIN "lms049_receipt_mis cf live" AS  "LMS049ReceiptMis New" ON "LMS049ReceiptMis New"."loan_account_number"  = "NBFC :- Dump Data union"."loan_account_number" /*AND	"LMS_Receipt_MIS_CF_PB_049"."date_of_receipt"  = "LMS049ReceiptMis New"."date_of_receipt"*/
+
+	 AND	is_previous_nday("LMS049ReceiptMis New"."date_of_receipt", 60)  = 1
+	 AND	"LMS049ReceiptMis New"."receipt_purpose"  = 'Closure' 
+LEFT JOIN "lms049_receipt_mis_PB Live" AS  "Paisa_Buddy_LMS049ReceiptMis" ON "Paisa_Buddy_LMS049ReceiptMis"."loan_account_number"  = "NBFC :- Dump Data union"."loan_account_number" /*AND	"Paisa_Buddy_LMS049ReceiptMis"."date_of_receipt"  = "LMS_Receipt_MIS_CF_PB_049"."date_of_receipt"*/
+
+	 AND	is_previous_nday("Paisa_Buddy_LMS049ReceiptMis"."date_of_receipt", 60)  = 1
+	 AND	"Paisa_Buddy_LMS049ReceiptMis"."receipt_purpose"  = 'Closure'  
+WHERE	 "NBFC :- Dump Data union"."Date of Report Date"  = '2026-03-11'
+ AND	"NBFC :- Dump Data union"."Table"  <> 'CF-G_Sheet' /* and		 "NBFC :- Dump Data union"."loan_account_number" ='LBLF201022AC045'*/
+/* AND	"Loan Portfolio CF + CF_Gsheet + PB_010"."disbursal_date"  between last_nmonth((date(concat_ws('-', year(today()), month(today()), '1'))), 8)  and  next_nmonth(last_nmonth(date(concat_ws('-', year(today()), month(today()), '1')), 8), 7)*/
+/**/
+
